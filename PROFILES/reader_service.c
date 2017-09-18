@@ -178,7 +178,7 @@ static gattAttribute_t Reader_ServiceAttrTbl[] = {
         GATT_PERMIT_READ,
           0, (uint8_t *) &ReaderServiceDecl },
 
-          // payload Characteristic Declaration
+        // payload Characteristic Declaration
         { { ATT_BT_UUID_SIZE, characterUUID },
         GATT_PERMIT_READ,
           0, &rs_PayloadProps },
@@ -191,7 +191,7 @@ static gattAttribute_t Reader_ServiceAttrTbl[] = {
         GATT_PERMIT_READ | GATT_PERMIT_WRITE,
           0, (uint8_t *) &rs_PayloadConfig },
 
-          //Declaracion Iniciado
+        //Declaracion Iniciado
         { { ATT_BT_UUID_SIZE, characterUUID },
         GATT_PERMIT_READ,
           0, &rs_IniciadoProps },
@@ -200,19 +200,19 @@ static gattAttribute_t Reader_ServiceAttrTbl[] = {
         GATT_PERMIT_READ | GATT_PERMIT_WRITE | GATT_PERMIT_WRITE,
           0, rs_IniciadoVal },
         //CCCD
-          { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
         GATT_PERMIT_READ | GATT_PERMIT_WRITE,
           0, (uint8_t *) &rs_IniciadoConfig },
 
-         //Declaracion Ciclo de lectura
+        //Declaracion Ciclo de lectura
         { { ATT_BT_UUID_SIZE, characterUUID },
         GATT_PERMIT_READ,
           0, &rs_Ciclo_de_lecturaProps },
-         //valor
+        //valor
         { { ATT_UUID_SIZE, rs_Ciclo_de_lecturaUUID },
         GATT_PERMIT_READ | GATT_PERMIT_WRITE | GATT_PERMIT_WRITE,
           0, rs_Ciclo_de_lecturaVal },
-         //CCCD
+        //CCCD
         { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
         GATT_PERMIT_READ | GATT_PERMIT_WRITE,
           0, (uint8_t *) &rs_Ciclo_de_lecturaConfig },
@@ -221,7 +221,7 @@ static gattAttribute_t Reader_ServiceAttrTbl[] = {
         { { ATT_BT_UUID_SIZE, characterUUID },
         GATT_PERMIT_READ,
           0, &rs_TimeProps },
-         //valor
+        //valor
         { { ATT_UUID_SIZE, rs_TimeUUID },
         GATT_PERMIT_READ | GATT_PERMIT_WRITE | GATT_PERMIT_WRITE,
           0, rs_TimeVal },
@@ -230,11 +230,11 @@ static gattAttribute_t Reader_ServiceAttrTbl[] = {
         { { ATT_BT_UUID_SIZE, characterUUID },
         GATT_PERMIT_READ,
           0, &rs_EstadoProps },
-         //valor
+        //valor
         { { ATT_UUID_SIZE, rs_EstadoUUID },
         GATT_PERMIT_READ,
           0, rs_EstadoVal },
-         //CCCD
+        //CCCD
         { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
         GATT_PERMIT_READ | GATT_PERMIT_WRITE,
           0, (uint8_t *) &rs_EstadoConfig }, };
@@ -331,7 +331,6 @@ extern bStatus_t ReaderService_AddService(uint8_t rspTaskId)
                                          &Reader_ServiceCBs);
     Log_info1("Registered service, %d attributes", (IArg)GATT_NUM_ATTRS( Reader_ServiceAttrTbl ));
     rs_icall_rsp_task_id = rspTaskId;
-
 
     return (status);
 
@@ -741,11 +740,15 @@ static bStatus_t Reader_Service_WriteAttrCB(uint16_t connHandle,
                 (IArg)offset,
                 (IArg)method);
         //no establecer ciclo de lectura a menos que el tiempo se encuentre asignado si no este no es opcional
-        if(Reader_Parse_Ciclo_De_Lectura(pValue) != ONE_SHOT && Reader_Parse_Ciclo_De_Lectura(pValue) != NONE)
-            if(*rs_TimeVal == 0){
+        if (Reader_Parse_Ciclo_De_Lectura(pValue) != ONE_SHOT
+                && Reader_Parse_Ciclo_De_Lectura(pValue) != NONE)
+        {
+            if (*rs_TimeVal == 0)
+            {
                 Log_info0("No se ha establecido el tiempo por ejecucion");
                 return ATT_ERR_WRITE_NOT_PERMITTED;
             }
+        }
         break;
 
     case RS_TIME_ID:
@@ -814,12 +817,12 @@ static bStatus_t Reader_Service_WriteAttrCB(uint16_t connHandle,
     return status;
 }
 
+static read_types_t Reader_Parse_Ciclo_De_Lectura(uint8_t * pVal)
+{
 
-static read_types_t Reader_Parse_Ciclo_De_Lectura(uint8_t * pVal){
+    read_types_t tipo = (read_types_t) *pVal;
 
-    read_types_t tipo = (read_types_t)*pVal;
-
-     return tipo;
+    return tipo;
 }
 
 //static void establecerTipoDeLectura(read_types_t rt){

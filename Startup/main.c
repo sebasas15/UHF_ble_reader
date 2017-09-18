@@ -92,7 +92,7 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG;
 /*******************************************************************************
  * LOCAL VARIABLES
  */
-
+static UART_Handle uartHandle;
 /*******************************************************************************
  * GLOBAL VARIABLES
  */
@@ -137,7 +137,8 @@ int main()
    * Note: Define xdc_runtime_Log_DISABLE_ALL to remove all impact of Log.
    * Note: NULL as Params gives 115200,8,N,1 and Blocking mode */
   UART_init();
-  UartLog_init(UART_open(Board_UART, NULL));
+  uartHandle = UART_open(Board_UART, NULL);
+  UartLog_init(uartHandle);
 
   /* Initialize ICall module */
   ICall_init();
@@ -147,9 +148,8 @@ int main()
 
   /* Kick off profile - Priority 3 */
   GAPRole_createTask();
-
   ProjectZero_createTask();
-  Reader_createTask();
+ // Reader_createTask(uartHandle);
 
   /* enable interrupts and start SYS/BIOS */
   BIOS_start();

@@ -3,9 +3,10 @@
 #include <ti/sysbios/knl/Semaphore.h>
 #include <xdc/cfg/global.h>
 #include <ti/sysbios/knl/Queue.h>
-#include <xdc/runtime/Log.h>
 #include <string.h>
-//#include "tm_reader.h"
+#include <reader_imp.h>
+#include <project_zero.h>
+
 
 //*********************************************
 //CONSTANTES
@@ -21,30 +22,50 @@
 //LOCALES
 //*******************************************************
 
+//static TMR_Reader r, *rp;
+Task_Struct rdTask;
+Char rdTaskStack[READER_TASK_STACK_SIZE];
+
+static Queue_Struct readerMsgQ;
+static Queue_Handle hReaderMsgQ;
+static uint8_t antennaCount = 0x0;
+static uint8_t buffer[20];
+static read_types_t tipo_de_lectura = NONE;
+static uint8_t read_time = 0;
+static uint8_t *antennaList = NULL;
+static Reader_Imp_Init_Params reader_param = {
+
+                                              .head = 0,
+                                              .printDebug = true,
+                                              .lightDebug = true,
+                                              .sim = true
+};
+
+/*********************************************************
+ * FUNCIONES LOCALES
+ */
+
 static void Reader_taskFxn(UArg a0, UArg a1);
 static void Reader_init();
 static void Reader_task_init();
 static void Reader_leer(uint16_t c);
 static void ejecutarComando(reader_msg_t * msg);
 static void ejecutarLectura(reader_msg_t * msg);
-//static TMR_Reader r, *rp;
-Task_Struct rdTask;
-Char rdTaskStack[READER_TASK_STACK_SIZE];
-static Queue_Struct readerMsgQ;
-static Queue_Handle hReaderMsgQ;
-static uint8_t antennaCount = 0x0;
-static  uint8_t buffer[20];
-static uint8_t *antennaList = NULL;
+static bool setupNano(long baudRate);
+static void setReadTime(reader_msg_t * msg);
+static void setReadType(reader_msg_t * msg);
 
-void Reader_createTask(void)
+void Reader_createTask(UART_Handle uh)
 {
-    Task_Params taskParams;
 
+    Task_Params taskParams;
     // Configure task
     Task_Params_init(&taskParams);
     taskParams.stack = rdTaskStack;
     taskParams.stackSize = READER_TASK_STACK_SIZE;
     taskParams.priority = READER_TASK_PRIORITY;
+
+      reader_param.uartHandle = uh;
 
     Task_construct(&rdTask, Reader_taskFxn, &taskParams, NULL);
 }
@@ -69,62 +90,18 @@ static void Reader_taskFxn(UArg a0, UArg a1)
         Semaphore_post(App_getSem());
     }
 
-
 }
 
 static void Reader_init()
 {
 
-
+    //return;
     Log_info0("iniciando Reader");
-
-   // TMR_Status ret;
-   // TMR_Region region;
-    //int readpower = READPOWER_NULL;
-   // uint8_t i;
-   // TMR_String model;
     char str[64];
-   // TMR_TRD_MetadataFlag metadata = TMR_TRD_METADATA_FLAG_ALL;
-
-   // rp = &r;
-
-  //  ret = TMR_create(rp, "tmr:///com1");
     buffer[0] = 1;
     antennaList = buffer;
     antennaCount = 0x01;
-
-   // ret = TMR_connect(rp);
-   // if (TMR_SUCCESS != ret)
-    //    Log_warning0(ret);
-
-   // region = TMR_REGION_EU;
-   // ret = TMR_paramSet(rp, TMR_PARAM_REGION_ID, &region);
-
-   // model.value = str;
-   // model.max = 64;
-    //TMR_paramGet(rp, TMR_PARAM_VERSION_MODEL, &model);
-   // Log_info0((char*) model.value);
-   // if (((0 == strcmp("Sargas", model.value))
-   //         || (0 == strcmp("M6e Micro", model.value))
-   //         || (0 == strcmp("M6e Nano", model.value))) && (NULL == antennaList))
-   // {
-   // }
-
-    /**
-     * for antenna configuration we need two parameters
-     * 1. antennaCount : specifies the no of antennas should
-     *    be included in the read plan, out of the provided antenna list.
-     * 2. antennaList  : specifies  a list of antennas for the read plan.
-     **/
-    /**
-     if (rp->readerType == TMR_READER_TYPE_SERIAL)
-     {
-     // Set the metadata flags. Configurable Metadata param is not supported for llrp readers
-     // metadata = TMR_TRD_METADATA_FLAG_ANTENNAID | TMR_TRD_METADATA_FLAG_FREQUENCY | TMR_TRD_METADATA_FLAG_PHASE;
-     ret = TMR_paramSet(rp, TMR_PARAM_METADATAFLAG, &metadata);
-     }
-     */
-
+    setupNano(115200);
 
 }
 
@@ -158,13 +135,13 @@ extern void Reader_enqueueCmdMsg(reader_cmd_t readerCmdType, uint8_t *pData,
                                  uint16_t len)
 {
     reader_msg_t *pMsg = ICall_malloc(sizeof(reader_msg_t) + len);
-
-    if (readerCmdType == LEER)
-    {
-        Log_warning0(
-                "Para usar el comando LEER, utilizar el metodo Reader_enqueueReadMsg");
-        return;
-    }
+//
+//    if (readerCmdType == LEER)
+//    {
+//        Log_warning0(
+//                "Para usar el comando LEER, utilizar el metodo Reader_enqueueReadMsg");
+//        return;
+//    }
 
     if (pMsg != NULL)
     {
@@ -181,31 +158,68 @@ extern void Reader_enqueueCmdMsg(reader_cmd_t readerCmdType, uint8_t *pData,
 
 }
 
-
-
 static void ejecutarComando(reader_msg_t * msg)
 {
 
-    read_types_t comando = msg->type;
-    switch (comando){
+    reader_cmd_t comando = msg->cmd;
+    switch (comando)
+    {
 
     case CONECTAR:
-
         Reader_init();
         break;
     case DESCONECTAR:
-    //    TMR_destroy(NULL);
+        //    TMR_destroy(NULL);
         Log_info0("desconectando");
         break;
     case LEER:
         ejecutarLectura(msg);
+        break;
+    case SET_TIME:
+        setReadTime(msg);
+        break;
+    case SET_READ_TYPE:
+        setReadType(msg);
         break;
 
     }
 
 }
 
-static void ejecutarLectura(reader_msg_t * msg){
+static void setReadTime(reader_msg_t * msg)
+{
+
+    read_time = (uint8_t) *msg->pdu;
+    //memcpy(read_time,msg->pdu,sizeof(msg->pdu));
+
+}
+static void setReadType(reader_msg_t * msg)
+{
+
+    tipo_de_lectura = (read_types_t) *msg->pdu;
+    Log_info1("estableciendo cliclo de lectura %d", tipo_de_lectura);
+    switch (tipo_de_lectura)
+    {
+    case ONE_SHOT:
+        Log_info0("ONE_SHOT");
+        break;
+    case TIMEOUT:
+        Log_info0("TIMEOUT");
+        break;
+    case PERIODIC:
+        Log_info0("PERIODIC");
+        break;
+    case CONTINOUS:
+        Log_info0("CONTINOUS");
+        break;
+    default:
+        break;
+
+    }
+}
+
+static void ejecutarLectura(reader_msg_t * msg)
+{
     read_types_t tipo = msg->type;
 
     switch (tipo)
@@ -227,9 +241,7 @@ static void ejecutarLectura(reader_msg_t * msg){
         break;
     }
 
-
 }
-
 
 /*
  * @brief   Lee datos desde el reader y los encola para su uso en la Task de aplicacion ble.
@@ -240,11 +252,52 @@ static void ejecutarLectura(reader_msg_t * msg){
 static void Reader_leer(uint16_t connHandler)
 {
 
-        char epcStr[] = "1312332";
+    char epcStr[] = "13123321234567832123";
 
-        Log_info1("enviando dato %s",epcStr);
-        user_enqueueCharDataMsg(APP_MSG_UPDATE_CHARVAL,connHandler,READER_SERVICE_SERV_UUID,RS_PAYLOAD_ID,epcStr,strlen(epcStr));
 
+//      uint8_t myEPC[12]; //Most EPCs are 12 bytes
+//      uint8_t myEPClength;
+//      uint8_t responseType = 0;
+//
+//      while (responseType != RESPONSE_SUCCESS)//RESPONSE_IS_TAGFOUND)
+//      {
+//        myEPClength = sizeof(myEPC); //Length of EPC is modified each time .readTagEPC is called
+//
+//        responseType = Reader_Imp_readTagEPC(myEPC, myEPClength, 500); //Scan for a new tag up to 500ms
+//      }
+
+
+    Log_info1("enviando dato %s",epcStr);
+    user_enqueueCharDataMsg(APP_MSG_UPDATE_CHARVAL, connHandler,
+    READER_SERVICE_SERV_UUID,
+                            RS_PAYLOAD_ID, epcStr, strlen(epcStr));
 
 }
 
+static bool setupNano(long baudRate)
+
+{
+
+    Reader_Imp_begin(&reader_param); //Tell the library to communicate over software serial port
+    Reader_Imp_getVersion();
+    if (reader_param.msg[0] == ERROR_WRONG_OPCODE_RESPONSE)
+    {
+        //This happens if the baud rate is correct but the module is doing a ccontinuous read
+        Reader_Imp_stopReading();
+
+        // Serial.println(F("Module continuously reading. Asking it to stop..."));
+
+        //  delay(1500);
+    }
+
+
+//    if (reader_param.msg[0] != ALL_GOOD)
+//        return (false);        //Something is not right
+
+    //The M6E has these settings no matter what
+    Reader_Imp_setTagProtocol();//Set protocol to GEN2
+
+    Reader_Imp_setAntennaPort();        //Set TX/RX antenna ports to 1
+
+    return (true);        //We are ready to rock
+}

@@ -166,11 +166,6 @@ static ICall_Semaphore sem;
 static Queue_Struct applicationMsgQ;
 static Queue_Handle hApplicationMsgQ;
 
-// Clock structs for periodic notification example
-static Clock_Struct rs_Payload_clock;
-static Clock_Struct rs_Iniciado_clock;
-static Clock_Struct rs_Ciclo_de_lectura_clock;
-
 // Task configuration
 Task_Struct przTask;
 Char przTaskStack[PRZ_TASK_STACK_SIZE];
@@ -342,26 +337,6 @@ static void ProjectZero_init(void)
     // ******************************************************************
     // Hardware initialization
     // ******************************************************************
-
-    // ******************************************************************
-    // Initialization of clock objects used for notifiable characterisics
-    // ******************************************************************
-    Clock_Params clockParams;
-    Clock_Params_init(&clockParams);
-    clockParams.period = 5000 * (1000 / Clock_tickPeriod); // 5000ms period
-
-    // Clock struct initialization for periodic notification example
-    // Clock callbacks only have one parameter, so make one callback handler per service
-    // and one Clock Struct per noti/ind characteristic.
-    clockParams.arg = RS_PAYLOAD_ID;
-    Clock_construct(&rs_Payload_clock, user_ReaderService_clockSwiHandler, 0,
-                    &clockParams);
-    clockParams.arg = RS_INICIADO_ID;
-    Clock_construct(&rs_Iniciado_clock, user_ReaderService_clockSwiHandler, 0,
-                    &clockParams);
-    clockParams.arg = RS_CICLO_DE_LECTURA_ID;
-    Clock_construct(&rs_Ciclo_de_lectura_clock,
-                    user_ReaderService_clockSwiHandler, 0, &clockParams);
 
     // ******************************************************************
     // BLE Stack initialization
@@ -683,19 +658,11 @@ static void user_processGapStateChangeEvt(gaprole_States_t newState)
     case GAPROLE_WAITING:
         Log_info0("Disconnected / Idle");
 
-        // Turn off periodic clocks for ind/noti demo
-        Clock_stop((Clock_Handle) & rs_Payload_clock);
-        Clock_stop((Clock_Handle) & rs_Iniciado_clock);
-        Clock_stop((Clock_Handle) & rs_Ciclo_de_lectura_clock);
         break;
 
     case GAPROLE_WAITING_AFTER_TIMEOUT:
         Log_info0("Connection timed out");
 
-        // Turn off periodic clocks for ind/noti demo
-        Clock_stop((Clock_Handle) & rs_Payload_clock);
-        Clock_stop((Clock_Handle) & rs_Iniciado_clock);
-        Clock_stop((Clock_Handle) & rs_Ciclo_de_lectura_clock);
         break;
 
     case GAPROLE_ERROR:
@@ -735,7 +702,8 @@ void user_ReaderService_ValueChangeHandler(char_data_t *pCharData)
                 (IArg)"iniciado",
                 (IArg)pretty_data_holder);
 
-            Reader_enqueueReadMsg(tipo_de_lectura ,pCharData->connHandle);
+       // Reader_enqueueCmdMsg(CONECTAR, NULL, 0);
+        //Reader_enqueueReadMsg(ONE_SHOT,pCharData->connHandle);
 
         break;
 
@@ -744,17 +712,20 @@ void user_ReaderService_ValueChangeHandler(char_data_t *pCharData)
                 (IArg)"Reader Service",
                 (IArg)"ciclo de lectura",
                 (IArg)pretty_data_holder);
+
+       // Reader_enqueueCmdMsg(SET_READ_TYPE,pCharData->data,pCharData->dataLen);
+
         break;
+
 
     case RS_TIME_ID:
         Log_info3("Value Change msg: %s %s: %s",
                 (IArg)"Reader Service",
                 (IArg)"time",
                 (IArg)pretty_data_holder);
-        memset(argumento.data,0,sizeof(argumento.data));
-        argumento.size = 0;
-        memcpy(argumento.data,pCharData->data,pCharData->dataLen);
-        argumento.size = pCharData->dataLen;
+
+   //     Reader_enqueueCmdMsg(SET_TIME,pCharData->data,pCharData->dataLen);
+
          break;
 
     default:
@@ -804,14 +775,12 @@ void user_ReaderService_CfgChangeHandler(char_data_t *pCharData)
         // ... In the generated example we turn periodic clocks on/off
         if (configValue)
         { // 0x0001 and 0x0002 both indicate turned on.
-            Reader_enqueueCmdMsg(CONECTAR, NULL, 0);
-            Clock_start((Clock_Handle) & rs_Payload_clock);
 
         }
         else
         {
-            Reader_enqueueCmdMsg(DESCONECTAR, NULL, 0);
-            Clock_stop((Clock_Handle) & rs_Payload_clock);
+     //       Reader_enqueueCmdMsg(DESCONECTAR, NULL, 0);
+
         }
         break;
 
@@ -820,10 +789,6 @@ void user_ReaderService_CfgChangeHandler(char_data_t *pCharData)
                 (IArg)"Reader Service",
                 (IArg)"iniciado",
                 (IArg)configValString);
-        if (configValue)
-            Clock_start((Clock_Handle) & rs_Iniciado_clock);
-        else
-            Clock_stop((Clock_Handle) & rs_Iniciado_clock);
         break;
 
     case RS_CICLO_DE_LECTURA_ID:
@@ -831,10 +796,6 @@ void user_ReaderService_CfgChangeHandler(char_data_t *pCharData)
                 (IArg)"Reader Service",
                 (IArg)"ciclo de lectura",
                 (IArg)configValString);
-        if (configValue) // 0x0001 and 0x0002 both indicate turned on.
-            Clock_start((Clock_Handle) & rs_Ciclo_de_lectura_clock);
-        else
-            Clock_stop((Clock_Handle) & rs_Ciclo_de_lectura_clock);
         break;
 
     default:

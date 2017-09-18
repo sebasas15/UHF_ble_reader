@@ -5,8 +5,8 @@
  *      Author: seba
  */
 
-#ifndef APPLICATION_READER_H_
-#define APPLICATION_READER_H_
+#ifndef APPLICATION_READER_HA_
+#define APPLICATION_READER_HA_
 
 #ifdef __cplusplus
 extern "C"
@@ -14,13 +14,18 @@ extern "C"
 #endif
 #include "reader_service.h"
 #include <ti/sysbios/knl/Queue.h>
-#include "project_zero.h"
+#include <xdc/runtime/Log.h>
+#include <ti/drivers/UART.h>
+
+
 
 typedef enum {
 
     CONECTAR = 0,
     DESCONECTAR,
-    LEER
+    LEER,
+    SET_TIME,
+    SET_READ_TYPE
 
 } reader_cmd_t;
 
@@ -34,7 +39,7 @@ typedef struct
 } reader_msg_t;
 
 
-extern void Reader_createTask(void);
+extern void Reader_createTask(UART_Handle uh);
 
 extern void Reader_enqueueCmdMsg(reader_cmd_t readerCmdType, uint8_t *pData,
                                  uint16_t len);
@@ -44,4 +49,4 @@ extern void Reader_enqueueReadMsg(read_types_t appMsgType, uint16_t connHandler)
 }
 #endif
 
-#endif /* APPLICATION_READER_H_ */
+#endif /* APPLICATION_READER_HA_ */

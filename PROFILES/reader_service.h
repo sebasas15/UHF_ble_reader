@@ -66,7 +66,7 @@ extern "C"
 #define RS_PAYLOAD_ID                 0
 #define RS_PAYLOAD_UUID               0x9DF9
 #define RS_PAYLOAD_UUID_BASE128(uuid) 0x6F, 0x2A, 0x03, 0x60, 0xA9, 0x59, 0x6B, 0x8C, 0xA9, 0x4D, 0x7F, 0x9B, LO_UINT16(uuid), HI_UINT16(uuid), 0x3C, 0xBD
-#define RS_PAYLOAD_LEN                16
+#define RS_PAYLOAD_LEN                124
 #define RS_PAYLOAD_LEN_MIN            16
 
 // iniciado Characteristic defines
